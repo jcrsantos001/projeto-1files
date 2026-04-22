@@ -30,7 +30,7 @@ spec:
         - key: kubernetes.io/hostname
           operator: In
           values:
-          - e2e-test-worker
+            - e2e-test-worker
 
 ---
 apiVersion: v1
