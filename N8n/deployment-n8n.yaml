@@ -5,6 +5,7 @@ metadata:
   namespace: n8n
 
 spec:
+  serviceAccountName: n8n
   replicas: 1
 
   selector:
