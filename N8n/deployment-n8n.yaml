@@ -5,7 +5,7 @@ metadata:
   namespace: n8n
 
 spec:
-  replicas: 2
+  replicas: 1
 
   selector:
     matchLabels:
@@ -17,6 +17,7 @@ spec:
         app: n8n
 
     spec:
+      terminationGracePeriodSeconds: 30
 
       initContainers:
       - name: wait-for-postgres
@@ -24,20 +25,20 @@ spec:
         command:
         - sh
         - -c
-        - until nc -z postgres 5432; do sleep 2; done
+        - until nc -z postgres 5432; do echo "waiting for postgres"; sleep 2; done
 
       containers:
 
       - name: n8n
         image: n8nio/n8n:1.84.1
+        imagePullPolicy: IfNotPresent
 
         ports:
         - containerPort: 5678
 
         env:
-
         - name: DB_TYPE
-          value: postgres
+          value: postgresdb
 
         - name: DB_POSTGRESDB_HOST
           value: postgres
@@ -77,20 +78,32 @@ spec:
           requests:
             cpu: 500m
             memory: 1Gi
-
           limits:
             cpu: 2
             memory: 4Gi
 
-        livenessProbe:
+        startupProbe:
           httpGet:
             path: /healthz
             port: 5678
+          failureThreshold: 30
+          periodSeconds: 10
 
         readinessProbe:
           httpGet:
             path: /healthz
             port: 5678
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 5678
+          initialDelaySeconds: 60
+          periodSeconds: 20
+          timeoutSeconds: 5
 
         securityContext:
           runAsUser: 1000
@@ -104,9 +117,13 @@ spec:
 
       - name: tailscale
         image: tailscale/tailscale:stable
+        imagePullPolicy: IfNotPresent
 
         securityContext:
           privileged: true
+          capabilities:
+            add:
+            - NET_ADMIN
 
         env:
         - name: TS_AUTHKEY
@@ -117,6 +134,9 @@ spec:
 
         - name: TS_STATE_DIR
           value: /var/lib/tailscale
+
+        - name: TS_USERSPACE
+          value: "true"
 
         volumeMounts:
         - name: tailscale-state
